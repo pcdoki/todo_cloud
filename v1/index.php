@@ -66,7 +66,7 @@ function authenticate(\Slim\Route $route) {
  * @param String $password Description A regisztrálandó User-hez tartozó 
  * password.
  */
-$app->post('/register', function() use ($app) {
+$app->post('/user/register', function() use ($app) {
   
   verifyRequiredJSONParams(array('user_online_id', 'name', 'email', 
       'password'));
@@ -104,7 +104,7 @@ $app->post('/register', function() use ($app) {
  * @param String $email A bejelentkeztetendő User-hez tartozó email.
  * @param String $password A bejelentkeztetendő User-hez tartozó password.
  */
-$app->post('/login', function() use ($app) {
+$app->post('/user/login', function() use ($app) {
   
   verifyRequiredJSONParams(array('email', 'password'));
   
