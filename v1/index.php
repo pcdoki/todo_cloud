@@ -99,7 +99,7 @@ $app->post('/user/register', function() use ($app) {
 
 /**
  * Bejelentkezteti az adott User-t a megadott adatokkal.
- * GET metódus
+ * POST metódus
  * url /login
  * @param String $email A bejelentkeztetendő User-hez tartozó email.
  * @param String $password A bejelentkeztetendő User-hez tartozó password.
