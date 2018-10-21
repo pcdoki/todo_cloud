@@ -16,7 +16,8 @@ class DbConnect {
    * @return mysqli (adatbázis kapcsolat kezelője)
    */
   function connect() {
-    include_once dirname(__FILE__) . './Config.php';
+    //include_once dirname(__FILE__) . './Config.php';
+    include_once '../include/Config.php';
 
     // Kapcsolódás a mysql adatbázishoz.
     $this->conn = new mysqli(DB_HOST, DB_USERNAME, DB_PASSWORD, DB_NAME);

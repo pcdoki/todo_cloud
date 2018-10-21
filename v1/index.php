@@ -141,6 +141,28 @@ $app->post('/user/login', function() use ($app) {
  */
 
 /*
+ * Send the next row version for the given table and the given user.
+ */
+$app->get('/get_next_row_version/:table', 'authenticate', function($table) {
+  global $user_online_id;
+  $response = array();
+  $db = new DbHandler();
+
+  $next_row_version = $db->getNextRowVersion($table, $user_online_id);
+
+  if ($next_row_version != NULL) {
+    $response["error"] = false;
+    $response["next_row_version"] = $next_row_version;
+    echoResponse(200, $response);
+  } else {
+    $response["error"] = false;
+    $response["next_row_version"] = $next_row_version;
+    $response["message"] = "Failed the get next_row_version. Please try again!";
+    echoResponse(500, $response);
+  }
+});
+
+/*
  * ------------------------- todo tábla metódusai ----------------------------
  */
 
@@ -177,17 +199,19 @@ $app->get('/todo/:row_version', 'authenticate', function($row_version) {
  * list_online_id.
  * @param String $title A frissítendő Todo-hoz tartozó új title.
  * @param Integer $prioirity A frissítendő Todo-hoz tartozó új prioirity.
- * @param String $due_date A frissítendő Todo-hoz tartozó új due_date.
- * @param String $reminder_datetime A frissítendő Todo-hoz tartozó új 
- * reminder_datetime.
+ * @param Integer $due_date A frissítendő Todo-hoz tartozó új due_date.
+ * @param Integer $reminder_date_time A frissítendő Todo-hoz tartozó új 
+ * reminder_date_time.
  * @param String $description A frissítendő Todo-hoz tartozó új description.
  * @param Integer $completed A frissítendő Todo-hoz tartozó új completed.
  * @param Integer $deleted A frissítendő Todo-hoz tartozó új deleted.
  */
-$app->put('/todo/update', 'authenticate', function() use($app) {
-  
+// 000webhost.com don't allow PUT and DELETE requests for free accounts
+//$app->put('/todo/update', 'authenticate', function() use($app) {
+$app->post('/todo/update', 'authenticate', function() use($app) {
+
   verifyRequiredJSONParams(array('todo_online_id', 'title', 'priority', 
-      'due_date', 'completed', 'deleted'));
+      'due_date', 'completed', 'row_version', 'deleted', 'position'));
 
   global $user_online_id;
   $json = $app->request->getBody();
@@ -200,11 +224,15 @@ $app->put('/todo/update', 'authenticate', function() use($app) {
   }
   $title = $data["title"];
   $priority = $data["priority"];
-  $due_date = $data["due_date"];
-  if ($data["reminder_datetime"] != null) {
-    $reminder_datetime = $data["reminder_datetime"];
+  if ($data["due_date"] != null || $data["due_date"] != 0) {
+    $due_date = $data["due_date"];
   } else {
-    $reminder_datetime = null;
+    $due_date = null;
+  }
+  if ($data["reminder_date_time"] != null || $data["reminder_date_time"] != 0) {
+    $reminder_date_time = $data["reminder_date_time"];
+  } else {
+    $reminder_date_time = null;
   }
   if ($data["description"] != null) {
     $description = $data["description"];
@@ -212,19 +240,20 @@ $app->put('/todo/update', 'authenticate', function() use($app) {
     $description = null;
   }
   $completed = $data["completed"];
+  $row_version = $data["row_version"];
   $deleted = $data["deleted"];
+  $position = $data["position"];
 
   $db = new DbHandler();
   $response = array();
-
-  $row_version = $db->updateTodo($todo_online_id, $user_online_id, 
-          $list_online_id, $title, $priority, $due_date, $reminder_datetime, 
-          $description, $completed, $deleted);
   
-  if ($row_version != null) {
+  $success = $db->updateTodo($todo_online_id, $user_online_id, 
+          $list_online_id, $title, $priority, $due_date, $reminder_date_time, 
+          $description, $completed, $row_version, $deleted, $position);
+  
+  if ($success) {
     $response["error"] = false;
     $response["message"] = "Todo updated successfully.";
-    $response["row_version"] = $row_version;
     echoResponse(200, $response);
   } else {
     $response["error"] = true;
@@ -242,9 +271,9 @@ $app->put('/todo/update', 'authenticate', function() use($app) {
  * list_online_id.
  * @param String $title A frissítendő Todo-hoz tartozó új title.
  * @param Integer $prioirity A frissítendő Todo-hoz tartozó új prioirity.
- * @param String $due_date A frissítendő Todo-hoz tartozó új due_date.
- * @param String $reminder_datetime A frissítendő Todo-hoz tartozó új 
- * reminder_datetime.
+ * @param Integer $due_date A frissítendő Todo-hoz tartozó új due_date.
+ * @param Integer $reminder_date_time A frissítendő Todo-hoz tartozó új 
+ * reminder_date_time.
  * @param String $description A frissítendő Todo-hoz tartozó új description.
  * @param Integer $completed A frissítendő Todo-hoz tartozó új completed.
  * @param Integer $deleted A frissítendő Todo-hoz tartozó új deleted.
@@ -252,7 +281,7 @@ $app->put('/todo/update', 'authenticate', function() use($app) {
 $app->post('/todo/insert', 'authenticate', function() use ($app) {
   
   verifyRequiredJSONParams(array('todo_online_id', 'title', 'priority', 
-      'due_date', 'completed', 'deleted'));
+      'due_date', 'completed', 'row_version', 'deleted', 'position'));
 
   global $user_online_id;
   $json = $app->request->getBody();
@@ -265,11 +294,15 @@ $app->post('/todo/insert', 'authenticate', function() use ($app) {
   }
   $title = $data["title"];
   $priority = $data["priority"];
-  $due_date = $data["due_date"];
-  if ($data["reminder_datetime"] != null) {
-    $reminder_datetime = $data["reminder_datetime"];
+  if ($data["due_date"] != null || $data["due_date"] != 0) {
+    $due_date = $data["due_date"];
   } else {
-    $reminder_datetime = null;
+    $due_date = null;
+  }
+  if ($data["reminder_date_time"] != null || $data["reminder_date_time"] != 0) {
+    $reminder_date_time = $data["reminder_date_time"];
+  } else {
+    $reminder_date_time = null;
   }
   if ($data["description"] != null) {
     $description = $data["description"];
@@ -277,18 +310,20 @@ $app->post('/todo/insert', 'authenticate', function() use ($app) {
     $description = null;
   }
   $completed = $data["completed"];
+  $row_version = $data["row_version"];
   $deleted = $data["deleted"];
+  $position = $data["position"];
   
   $db = new DbHandler();
   $response = array();
   
-  $row_version = $db->createTodo($todo_online_id, $user_online_id, 
-          $list_online_id, $title, $priority, $due_date, $reminder_datetime, 
-          $description, $completed, $deleted);
-  if ($row_version != NULL) {
+  $success = $db->createTodo($todo_online_id, $user_online_id, 
+          $list_online_id, $title, $priority, $due_date, $reminder_date_time, 
+          $description, $completed, $row_version, $deleted, $position);
+  
+  if ($success) {
     $response["error"] = false;
     $response["message"] = "Todo created successfully.";
-    $response["row_version"] = $row_version;
     echoResponse(201, $response);
   } else {
     $response["error"] = true;
@@ -335,9 +370,11 @@ $app->get('/list/:row_version', 'authenticate', function($row_version) {
  * @param String $title A frissítendő List-hez tartozó új title.
  * @param Integer $deleted A frissítendő List-hez tartozó új deleted.
  */
-$app->put('/list/update', 'authenticate', function() use($app) {
+// 000webhost.com don't allow PUT and DELETE requests for free accounts
+//$app->put('/list/update', 'authenticate', function() use($app) {
+$app->post('/list/update', 'authenticate', function() use($app) {
   
-  verifyRequiredJSONParams(array('list_online_id', 'title', 'deleted'));
+  verifyRequiredJSONParams(array('list_online_id', 'title', 'row_version', 'deleted', 'position'));
 
   global $user_online_id;
   $json = $app->request->getBody();
@@ -349,17 +386,19 @@ $app->put('/list/update', 'authenticate', function() use($app) {
     $category_online_id = null;
   }
   $title = $data["title"];
+  $row_version = $data["row_version"];
   $deleted = $data["deleted"];
+  $position = $data["position"];
 
   $db = new DbHandler();
   $response = array();
 
-  $row_version = $db->updateList($list_online_id, $user_online_id, 
-          $category_online_id, $title, $deleted);
-  if ($row_version != null) {
+  $success = $db->updateList($list_online_id, $user_online_id, 
+          $category_online_id, $title, $row_version, $deleted, $position);
+  
+  if ($success) {
     $response["error"] = false;
     $response["message"] = "List updated successfully.";
-    $response["row_version"] = $row_version;
     echoResponse(200, $response);
   } else {
     $response["error"] = true;
@@ -381,7 +420,7 @@ $app->put('/list/update', 'authenticate', function() use($app) {
  */
 $app->post('/list/insert', 'authenticate', function() use ($app) {
   
-  verifyRequiredJSONParams(array('list_online_id', 'title', 'deleted'));
+  verifyRequiredJSONParams(array('list_online_id', 'title', 'row_version', 'deleted', 'position'));
 
   global $user_online_id;
   $json = $app->request->getBody();
@@ -393,17 +432,19 @@ $app->post('/list/insert', 'authenticate', function() use ($app) {
     $category_online_id = null;
   }
   $title = $data["title"];
+  $row_version = $data["row_version"];
   $deleted = $data["deleted"];
+  $position = $data["position"];
   
   $db = new DbHandler();
   $response = array();
   
-  $row_version = $db->createList($list_online_id, $user_online_id, 
-          $category_online_id, $title, $deleted);
-  if ($row_version != NULL) {
+  $success = $db->createList($list_online_id, $user_online_id, 
+          $category_online_id, $title, $row_version, $deleted, $position);
+  
+  if ($success) {
     $response["error"] = false;
     $response["message"] = "List created successfully.";
-    $response["row_version"] = $row_version;
     echoResponse(201, $response);
   } else {
     $response["error"] = true;
@@ -449,26 +490,30 @@ $app->get('/category/:row_version', 'authenticate', function($row_version) {
  * @param String $title A frissítendő Category-hez tartozó új title.
  * @param Integer $deleted A frissítendő Category-hez tartozó új deleted.
  */
-$app->put('/category/update', 'authenticate', function() use($app) {
+// 000webhost.com don't allow PUT and DELETE requests for free accounts
+//$app->put('/category/update', 'authenticate', function() use($app) {
+$app->post('/category/update', 'authenticate', function() use($app) {
   
-  verifyRequiredJSONParams(array('category_online_id', 'title', 'deleted'));
+  verifyRequiredJSONParams(array('category_online_id', 'title', 'row_version', 'deleted', 'position'));
 
   global $user_online_id;
   $json = $app->request->getBody();
   $data = json_decode($json, true);
   $category_online_id = $data["category_online_id"];
   $title = $data["title"];
+  $row_version = $data["row_version"];
   $deleted = $data["deleted"];
+  $position = $data["position"];
 
   $db = new DbHandler();
   $response = array();
 
-  $row_version = $db->updateCategory($category_online_id, $user_online_id, 
-          $title, $deleted);
-  if ($row_version != null) {
+  $success = $db->updateCategory($category_online_id, $user_online_id, 
+          $title, $row_version, $deleted, $position);
+  
+  if ($success) {
     $response["error"] = false;
     $response["message"] = "Category updated successfully.";
-    $response["row_version"] = $row_version;
     echoResponse(200, $response);
   } else {
     $response["error"] = true;
@@ -488,24 +533,26 @@ $app->put('/category/update', 'authenticate', function() use($app) {
  */
 $app->post('/category/insert', 'authenticate', function() use ($app) {
   
-  verifyRequiredJSONParams(array('category_online_id', 'title', 'deleted'));
+  verifyRequiredJSONParams(array('category_online_id', 'title', 'row_version', 'deleted', 'position'));
 
   global $user_online_id;
   $json = $app->request->getBody();
   $data = json_decode($json, true);
   $category_online_id = $data["category_online_id"];
   $title = $data["title"];
+  $row_version = $data["row_version"];
   $deleted = $data["deleted"];
+  $position = $data["position"];
   
   $db = new DbHandler();
   $response = array();
   
-  $row_version = $db->createCategory($category_online_id, $user_online_id, 
-          $title, $deleted);
-  if ($row_version != NULL) {
+  $success = $db->createCategory($category_online_id, $user_online_id, 
+          $title, $row_version, $deleted, $position);
+  
+  if ($success) {
     $response["error"] = false;
     $response["message"] = "Category created successfully.";
-    $response["row_version"] = $row_version;
     echoResponse(201, $response);
   } else {
     $response["error"] = true;

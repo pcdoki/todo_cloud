@@ -5,7 +5,8 @@ class DbHandler {
   private $conn;
 
   function __construct() {
-    require_once dirname(__FILE__) . './DbConnect.php';
+    //require_once dirname(__FILE__) . './DbConnect.php';
+    require_once '../include/DbConnect.php';
     // Adatbázis kapcsolat nyitása.
     $db = new DbConnect();
     $this->conn = $db->connect();
@@ -19,9 +20,15 @@ class DbHandler {
    * @return Integer A megadott table-höz tartozó következő row_version vagy 
    * semmi.
    */
-  private function getNextRowVersion($table) {
-    $stmt = $this->conn->prepare("SELECT MAX(row_version) AS "
-            . "max_row_version FROM " . $table);
+  public function getNextRowVersion($table, $user_online_id) {
+    $stmt = $this->conn->prepare(
+            "SELECT "
+            . "MAX(row_version) AS max_row_version "
+            . "FROM "
+            . $table . " "
+            . "WHERE "
+            . "user_online_id = '" . $user_online_id . "'"
+            );
     if ($stmt->execute()) {
       $result = $stmt->get_result()->fetch_assoc();
       $stmt->close();
@@ -44,7 +51,8 @@ class DbHandler {
    * konstans értéke.
    */
   public function createUser($user_online_id, $name, $email, $password) {
-    require_once 'PassHash.php';
+    //require_once 'PassHash.php';
+    require_once '../include/PassHash.php';
     
     if (!$this->isUserExists($email)) {
       $password_hash = PassHash::hash($password);
@@ -161,9 +169,9 @@ class DbHandler {
     $stmt->bind_param("s", $api_key);
     $stmt->execute();
     $stmt->store_result();
-    $num_rows = $stmt->num_rows;
-    $stmt->close();
-    return $num_rows > 0;
+        $num_rows = $stmt->num_rows;
+        $stmt->close();
+        return $num_rows > 0;
   }
 
   /**
@@ -218,9 +226,12 @@ class DbHandler {
         if ($todo["list_online_id"] === null) {
           $todo["list_online_id"] = "";
         }
-        if ($todo["reminder_datetime"] === null) {
-          $todo["reminder_datetime"] = "";
-        } 
+        if ($todo["due_date"] === null) {
+          $todo["due_date"] = 0;
+        }
+        if ($todo["reminder_date_time"] === null) {
+          $todo["reminder_date_time"] = 0;
+        }
         if ($todo["description"] === null) {
           $todo["description"] = "";
         }
@@ -242,35 +253,35 @@ class DbHandler {
    * list_online_id.
    * @param String $title A frissítendő Todo-hoz tartozó új title.
    * @param Integer $priority A frissítendő Todo-hoz tartozó új priority.
-   * @param String $due_date A frissítendő Todo-hoz tartozó új due_date.
-   * @param String $reminder_datetime A frissítendő Todo-hoz tartozó új 
-   * reminder_datetime.
+   * @param Integer $due_date A frissítendő Todo-hoz tartozó új due_date.
+   * @param Integer $reminder_date_time A frissítendő Todo-hoz tartozó új 
+   * reminder_date_time.
    * @param String $description A frissítendő Todo-hoz tartozó új description.
    * @param Integer $completed A frissítendő Todo-hoz tartozó új completed.
    * @param Integer $deleted A frissítendő Todo-hoz tartozó új deleted.
+   * $param Integer $position
    * @return Integer Siker esetén a frissítendő Todo-hoz tartozó row_version, 
    * egyébként null.
    */
   public function updateTodo($todo_online_id, $user_online_id, 
-          $list_online_id, $title, $priority, $due_date, $reminder_datetime, 
-          $description, $completed, $deleted) {
-    $row_version = $this->getNextRowVersion("todo");
-    $stmt = $this->conn->prepare("UPDATE todo SET user_online_id = ?, "
-            . "list_online_id = ?, title = ?, priority = ?, due_date = ?, "
-            . "reminder_datetime = ?, description = ?, "
-            . "completed = ?, row_version = ?, deleted = ? "
-            . "WHERE todo_online_id = ?");
-    $stmt->bind_param("sssisssiiis", $user_online_id, $list_online_id, $title, 
-            $priority, $due_date, $reminder_datetime, $description, 
-            $completed, $row_version, $deleted, $todo_online_id);
-    $stmt->execute();
-    $num_affected_rows = $stmt->affected_rows;
-    $stmt->close();
-    if ($num_affected_rows > 0) {
-      return $row_version;
-    } else {
-      return null;
-    }
+                  $list_online_id, $title, $priority, $due_date, $reminder_date_time, 
+                  $description, $completed, $row_version, $deleted, $position) {
+        $stmt = $this->conn->prepare("UPDATE todo SET user_online_id = ?, "
+                        . "list_online_id = ?, title = ?, priority = ?, due_date = ?, "
+                        . "reminder_date_time = ?, description = ?, "
+                        . "completed = ?, row_version = ?, deleted = ?, position = ? "
+                        . "WHERE todo_online_id = ?");
+        $stmt->bind_param("sssiiisiiiis", $user_online_id, $list_online_id, $title, 
+                        $priority, $due_date, $reminder_date_time, $description, 
+                        $completed, $row_version, $deleted, $position, $todo_online_id);
+        $stmt->execute();
+        $num_affected_rows = $stmt->affected_rows;
+        $stmt->close();
+        if ($num_affected_rows > 0) {
+          return true;
+        } else {
+          return false;
+        }
   }
   
   /**
@@ -283,34 +294,34 @@ class DbHandler {
    * list_online_id.
    * @param String $title A létrehozandó Todo-hoz tartozó title.
    * @param Integer $priority A létrehozandó Todo-hoz tartozó priority.
-   * @param String $due_date A létrehozandó Todo-hoz tartozó due_date.
-   * @param String $reminder_datetime A létrehozandó Todo-hoz tartozó 
-   * reminder_datetime.
+   * @param Integer $due_date A létrehozandó Todo-hoz tartozó due_date.
+   * @param Integer $reminder_date_time A létrehozandó Todo-hoz tartozó 
+   * reminder_date_time.
    * @param String $description A létrehozandó Todo-hoz tartozó description.
    * @param Integer $completed A létrehozandó Todo-hoz tartozó completed.
    * @param Integer $deleted A létrehozandó Todo-hoz tartozó deleted.
+   * @param In $position 
    * @return Integer Siker esetén a létrehozott Todo-hoz tartozó row_version, 
    * egyébként null.
    */
   public function createTodo($todo_online_id, $user_online_id, 
-          $list_online_id, $title, $priority, $due_date, $reminder_datetime, 
-          $description, $completed, $deleted) {
-    $row_version = $this->getNextRowVersion("todo");
+          $list_online_id, $title, $priority, $due_date, $reminder_date_time, 
+          $description, $completed, $row_version, $deleted, $position) {
     $stmt = $this->conn->prepare("INSERT INTO todo(todo_online_id, "
             . "user_online_id, list_online_id, title, priority, due_date, "
-            . "reminder_datetime, description, completed, row_version, "
-            . "deleted) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssssisssiii", $todo_online_id, $user_online_id, 
-            $list_online_id, $title, $priority, $due_date, $reminder_datetime,
-            $description, $completed, $row_version, $deleted);
+            . "reminder_date_time, description, completed, row_version, "
+            . "deleted, position) values(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("ssssiiisiiii", $todo_online_id, $user_online_id, 
+            $list_online_id, $title, $priority, $due_date, $reminder_date_time,
+            $description, $completed, $row_version, $deleted, $position);
     $result = $stmt->execute();
     $stmt->close();
     
     // Megvizsgáljuk, hogy sikeres volt-e a beszúrás.
     if ($result) {
-      return $row_version;
+      return true;
     } else {
-      return null;
+      return false;
     }
   }
   
@@ -356,24 +367,24 @@ class DbHandler {
    * category_online_id.
    * @param String $title A frissítendő List-hez tartozó új title.
    * @param Integer $deleted A frissítendő List-hez tartozó új deleted.
+   * $param Integer $position
    * @return Integer Siker esetén a frissített List-hez tartozó row_version, 
    * egyébként null.
    */
   public function updateList($list_online_id, $user_online_id, 
-          $category_online_id, $title, $deleted) {
-    $row_version = $this->getNextRowVersion("list");
+          $category_online_id, $title, $row_version, $deleted, $position) {
     $stmt = $this->conn->prepare("UPDATE list SET user_online_id = ?, "
             . "category_online_id = ?, title = ?, row_version = ?, "
-            . "deleted = ? WHERE list_online_id = ?");
-    $stmt->bind_param("sssiis", $user_online_id, $category_online_id, $title, 
-            $row_version, $deleted, $list_online_id);
+            . "deleted = ?, position = ? WHERE list_online_id = ?");
+    $stmt->bind_param("sssiiis", $user_online_id, $category_online_id, $title, 
+            $row_version, $deleted, $position, $list_online_id);
     $stmt->execute();
     $num_affected_rows = $stmt->affected_rows;
     $stmt->close();
     if ($num_affected_rows > 0) {
-      return $row_version;
+      return true;
     } else {
-      return null;
+      return false;
     }
   }
   
@@ -385,25 +396,25 @@ class DbHandler {
    * category_online_id.
    * @param String $title A felveendő List-hez tartozó title.
    * @param Integer $deleted A felveendő List-hez tartozó deleted.
+   * @param Integer $position 
    * @return Integer Siker esetén a létrehozott List-hez tartozó row_version, 
    * egyébként null.
    */
   public function createList($list_online_id, $user_online_id, 
-          $category_online_id, $title, $deleted) {
-    $row_version = $this->getNextRowVersion("list");
+          $category_online_id, $title, $row_version, $deleted, $position) {
     $stmt = $this->conn->prepare("INSERT INTO list(list_online_id, "
             . "user_online_id, category_online_id, title, row_version, "
-            . "deleted) values(?, ?, ?, ?, ?, ?)");
-    $stmt->bind_param("ssssii", $list_online_id, $user_online_id, 
-            $category_online_id, $title, $row_version, $deleted);
+            . "deleted, position) values(?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("ssssiii", $list_online_id, $user_online_id, 
+            $category_online_id, $title, $row_version, $deleted, $position);
     $result = $stmt->execute();
     $stmt->close();
     
     // Megvizsgáljuk, sikeres volt-e a beszúrás.
     if ($result) {
-      return $row_version;
+      return true;
     } else {
-      return null;
+      return false;
     }
   }
   
@@ -445,24 +456,24 @@ class DbHandler {
    * user_online_id.
    * @param String $title A frissítendő Category-hoz tartozó új title.
    * @param Integer $deleted A frissítendő Category-hoz tartozó új deleted.
+   * $param Integer $position
    * @return Integer Siker esetén a frissített Category-hez tartozó 
    * row_version, egyébként null.
    */
   public function updateCategory($category_online_id, $user_online_id, 
-          $title, $deleted) {
-    $row_version = $this->getNextRowVersion("category");
+          $title, $row_version, $deleted, $position) {
     $stmt = $this->conn->prepare("UPDATE category SET user_online_id = ?, "
-            . "title = ?, row_version = ?, deleted = ? WHERE "
+            . "title = ?, row_version = ?, deleted = ?, position = ? WHERE "
             . "category_online_id = ?");
-    $stmt->bind_param("ssiis", $user_online_id, $title, $row_version, $deleted, 
-            $category_online_id);
+    $stmt->bind_param("ssiiis", $user_online_id, $title, $row_version, $deleted, 
+            $position, $category_online_id);
     $stmt->execute();
     $num_affected_rows = $stmt->affected_rows;
     $stmt->close();
     if ($num_affected_rows > 0) {
-      return $row_version;
+      return true;
     } else {
-      return null;
+      return false;
     }
   }
   
@@ -474,25 +485,25 @@ class DbHandler {
    * user_online_id.
    * @param String $title A felveendő Category-hoz tartozó title.
    * @param Integer $deleted A felveendő Category-hoz tartozó deleted.
+   * @param Integer $position 
    * @return Integer Siker esetén a létrehozott Category-hoz tartozó 
    * row_version, egyébként null.
    */
   public function createCategory($category_online_id, $user_online_id, 
-          $title, $deleted) {
-    $row_version = $this->getNextRowVersion("category");
+          $title, $row_version, $deleted, $position) {
     $stmt = $this->conn->prepare("INSERT INTO category(category_online_id, "
-            . "user_online_id, title, row_version, deleted) "
-            . "values(?, ?, ?, ?, ?)");
-    $stmt->bind_param("sssii", $category_online_id, $user_online_id, $title, 
-            $row_version, $deleted);
+            . "user_online_id, title, row_version, deleted, position) "
+            . "values(?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param("sssiii", $category_online_id, $user_online_id, $title, 
+            $row_version, $deleted, $position);
     $result = $stmt->execute();
     $stmt->close();
     
     // Megvizsgáljuk, sikeres volt-e a beszúrás.
     if ($result) {
-      return $row_version;
+      return true;
     } else {
-      return null;
+      return false;
     }
   }
 
