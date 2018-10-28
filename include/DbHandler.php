@@ -83,6 +83,29 @@ class DbHandler {
     return $response;
   }
   
+  public function modifyUserPassword($user_online_id, $password) {
+    //require_once 'PassHash.php';
+    require_once '../include/PassHash.php';
+    
+    $password_hash = PassHash::hash($password);
+
+    $stmt = $this->conn->prepare(
+          "UPDATE "
+          . "user "
+          . "SET password_hash = ? "
+          . "WHERE user_online_id = ?"
+          );
+    $stmt->bind_param("ss", $password_hash, $user_online_id);
+    $stmt->execute();
+    $num_affected_rows = $stmt->affected_rows;
+    $stmt->close();
+    if ($num_affected_rows > 0) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+  
   /**
    * Lekéri az adatbázisból a megadott email címhez tartozó User-t.
    * @param String $email A lekérendő User-hez tartozó email cím.

@@ -163,6 +163,35 @@ $app->get('/get_next_row_version/:table', 'authenticate', function($table) {
 });
 
 /*
+ * ------------------------ user tábla metódusai -----------------------------
+ */
+
+$app->post('/user/modify_password', 'authenticate', function() use($app) {
+
+  verifyRequiredJSONParams(array('password'));
+
+  global $user_online_id;
+  $json = $app->request->getBody();
+  $data = json_decode($json, true);
+  $password = $data["password"];
+  
+  $db = new DbHandler();
+  $response = array();
+  
+  $success = $db->modifyUserPassword($user_online_id, $password);
+  
+  if ($success) {
+    $response["error"] = false;
+    $response["message"] = "Password modified successfully.";
+    echoResponse(200, $response);
+  } else {
+    $response["error"] = true;
+    $response["message"] = "Password failed to modify. Please try again!";
+    echoResponse(500, $response);
+  }
+});
+
+/*
  * ------------------------- todo tábla metódusai ----------------------------
  */
 
