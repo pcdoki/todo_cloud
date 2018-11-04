@@ -106,7 +106,26 @@ class DbHandler {
     }
   }
   
-  /**
+  public function resetUserPassword($email) {
+    //require_once 'PassHash.php';
+    require_once '../include/PassHash.php';
+    
+    $data = $this->getUserOnlineIdAndNameByEmail($email);
+    if ($data != null) {
+      $user_online_id = $data["user_online_id"];
+      $password = bin2hex(openssl_random_pseudo_bytes(8));
+      $data['password'] = $password;
+      if ($this->modifyUserPassword($user_online_id, $password)) {
+        return $data;
+      } else {
+        return null;
+      }      
+    } else {
+      return null;
+    }
+  }
+
+    /**
    * Lekéri az adatbázisból a megadott email címhez tartozó User-t.
    * @param String $email A lekérendő User-hez tartozó email cím.
    * @return array A megadott email címhez tartozó User vagy null.
@@ -122,6 +141,25 @@ class DbHandler {
       return $user;
     } else {
       $stmt->close();
+      return null;
+    }
+  }
+  
+  public function getUserOnlineIdAndNameByEmail($email) {
+    $stmt = $this->conn->prepare(
+            "SELECT "
+            . "user_online_id, name "
+            . "FROM "
+            . "user "
+            . "WHERE "
+            . "email = ?"
+            );
+    $stmt->bind_param("s", $email);
+    if ($stmt->execute()) {
+      $result = $stmt->get_result()->fetch_assoc();
+      $stmt->close();
+      return $result;
+    } else {
       return null;
     }
   }

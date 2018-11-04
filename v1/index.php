@@ -136,6 +136,48 @@ $app->post('/user/login', function() use ($app) {
   echoResponse(200, $response);
 });
 
+$app->post('/user/reset_password', function() use($app) {
+
+  verifyRequiredJSONParams(array('email'));
+  
+  $json = $app->request->getBody();
+  $data = json_decode($json, true);
+  $email = $data["email"];
+  
+  $db = new DbHandler();
+
+  $response = $db->resetUserPassword($email);
+  $password = $response["password"];
+  $name = $response["name"];
+  
+  if ($response != null) {
+    $to = $email;
+    $subject = 'Password reset';
+    $message = 'Dear ' . $name . ',<br>'
+            . '<p>you requested a password reset. Your new password is: '
+            . '<strong>' . $password . '</strong>.</p>'
+            . 'Best regards,<br>'
+            . 'Todo Cloud Team';
+    $headers = 'From: webmaster@example.com' . "\r\n" .
+      'Reply-To: webmaster@example.com' . "\r\n" .
+      'X-Mailer: PHP/' . phpversion();
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/html; charset=ISO-8859-1\r\n";
+
+    mail($to, $subject, $message, $headers);
+    
+    $response = array();
+    
+    $response["error"] = false;
+    $response["message"] = "Password reset successful.";
+    echoResponse(200, $response);
+  } else {
+    $response["error"] = true;
+    $response["message"] = "Failed to reset password. Please try again!";
+    echoResponse(500, $response);
+  }
+});
+
 /*
  * ------------------- Authentikációt tartalmazó metódusok --------------------
  */
@@ -186,7 +228,7 @@ $app->post('/user/modify_password', 'authenticate', function() use($app) {
     echoResponse(200, $response);
   } else {
     $response["error"] = true;
-    $response["message"] = "Password failed to modify. Please try again!";
+    $response["message"] = "Failed failed to modify password. Please try again!";
     echoResponse(500, $response);
   }
 });
