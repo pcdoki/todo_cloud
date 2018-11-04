@@ -83,26 +83,32 @@ class DbHandler {
     return $response;
   }
   
-  public function modifyUserPassword($user_online_id, $password) {
+  public function modifyUserPassword(
+          $user_online_id, $current_password, $new_password
+          ) {
     //require_once 'PassHash.php';
     require_once '../include/PassHash.php';
     
-    $password_hash = PassHash::hash($password);
+    if($this->checkCurrentPassword($user_online_id, $current_password)) {
+      $password_hash = PassHash::hash($new_password);
 
-    $stmt = $this->conn->prepare(
-          "UPDATE "
-          . "user "
-          . "SET password_hash = ? "
-          . "WHERE user_online_id = ?"
-          );
-    $stmt->bind_param("ss", $password_hash, $user_online_id);
-    $stmt->execute();
-    $num_affected_rows = $stmt->affected_rows;
-    $stmt->close();
-    if ($num_affected_rows > 0) {
-      return true;
+      $stmt = $this->conn->prepare(
+            "UPDATE "
+            . "user "
+            . "SET password_hash = ? "
+            . "WHERE user_online_id = ?"
+            );
+      $stmt->bind_param("ss", $password_hash, $user_online_id);
+      $stmt->execute();
+      $num_affected_rows = $stmt->affected_rows;
+      $stmt->close();
+      if ($num_affected_rows > 0) {
+        return true;
+      } else {
+        return false;
+      }
     } else {
-      return false;
+      return null;
     }
   }
   
@@ -214,6 +220,35 @@ class DbHandler {
     } else {
       $stmt->close();
       // Nem létezik felhasználó a megadott email-lel.
+      return false;
+    }
+  }
+  
+    public function checkCurrentPassword($user_online_id, $current_password) {
+    $stmt = $this->conn->prepare("SELECT password_hash FROM user "
+            . "WHERE user_online_id = ?");
+    $stmt->bind_param("s", $user_online_id);
+    $stmt->execute();
+    $stmt->bind_result($password_hash);
+    $stmt->store_result();
+    
+    if ($stmt->num_rows > 0) {
+      // Létezik felhasználó a megadott user_online_id-vel.
+      // Jelszó ellenőrzése.
+      $stmt->fetch();
+      $stmt->close();
+      
+      require_once 'PassHash.php';
+      if (PassHash::check_password($password_hash, $current_password)) {
+        // A megadott jelszó helyes.
+        return true;
+      } else {
+        // A megadott jelszó helytelen.
+        return false;
+      }
+    } else {
+      $stmt->close();
+      // Nem létezik felhasználó a megadott user_online_id-vel.
       return false;
     }
   }

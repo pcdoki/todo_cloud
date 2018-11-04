@@ -210,19 +210,26 @@ $app->get('/get_next_row_version/:table', 'authenticate', function($table) {
 
 $app->post('/user/modify_password', 'authenticate', function() use($app) {
 
-  verifyRequiredJSONParams(array('password'));
+  verifyRequiredJSONParams(array('current_password', 'new_password'));
 
   global $user_online_id;
   $json = $app->request->getBody();
   $data = json_decode($json, true);
-  $password = $data["password"];
+  $current_password = $data["current_password"];
+  $new_password = $data["new_password"];
   
   $db = new DbHandler();
   $response = array();
   
-  $success = $db->modifyUserPassword($user_online_id, $password);
+  $success = $db->modifyUserPassword(
+          $user_online_id, $current_password, $new_password
+          );
   
-  if ($success) {
+  if ($success == null) {
+    $response["error"] = true;
+    $response["message"] = "Your current password is incorrect.";
+    echoResponse(200, $response);
+  } else if ($success) {
     $response["error"] = false;
     $response["message"] = "Password modified successfully.";
     echoResponse(200, $response);
