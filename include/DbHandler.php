@@ -112,6 +112,29 @@ class DbHandler {
     }
   }
   
+  public function applyResetUserPassword($user_online_id, $new_password) {
+    //require_once 'PassHash.php';
+    require_once '../include/PassHash.php';
+    
+    $password_hash = PassHash::hash($new_password);
+
+    $stmt = $this->conn->prepare(
+          "UPDATE "
+          . "user "
+          . "SET password_hash = ? "
+          . "WHERE user_online_id = ?"
+          );
+    $stmt->bind_param("ss", $password_hash, $user_online_id);
+    $stmt->execute();
+    $num_affected_rows = $stmt->affected_rows;
+    $stmt->close();
+    if ($num_affected_rows > 0) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+  
   public function resetUserPassword($email) {
     //require_once 'PassHash.php';
     require_once '../include/PassHash.php';
@@ -121,7 +144,7 @@ class DbHandler {
       $user_online_id = $data["user_online_id"];
       $password = bin2hex(openssl_random_pseudo_bytes(8));
       $data['password'] = $password;
-      if ($this->modifyUserPassword($user_online_id, $password)) {
+      if ($this->applyResetUserPassword($user_online_id, $password)) {
         return $data;
       } else {
         return null;

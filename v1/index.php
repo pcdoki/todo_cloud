@@ -158,11 +158,11 @@ $app->post('/user/reset_password', function() use($app) {
             . '<strong>' . $password . '</strong>.</p>'
             . 'Best regards,<br>'
             . 'Todo Cloud Team';
-    $headers = 'From: webmaster@example.com' . "\r\n" .
-      'Reply-To: webmaster@example.com' . "\r\n" .
+    $headers = 'From: no-replay@todocloud.com' . "\r\n" .
+      'Reply-To: no-replay@todocloud.com' . "\r\n" .
       'X-Mailer: PHP/' . phpversion();
     $headers .= "MIME-Version: 1.0\r\n";
-    $headers .= "Content-Type: text/html; charset=ISO-8859-1\r\n";
+    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
 
     mail($to, $subject, $message, $headers);
     
@@ -235,7 +235,7 @@ $app->post('/user/modify_password', 'authenticate', function() use($app) {
     echoResponse(200, $response);
   } else {
     $response["error"] = true;
-    $response["message"] = "Failed failed to modify password. Please try again!";
+    $response["message"] = "Failed to modify password. Please try again!";
     echoResponse(500, $response);
   }
 });
