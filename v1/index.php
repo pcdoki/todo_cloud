@@ -88,7 +88,7 @@ $app->post('/user/register', function() use ($app) {
     $response["message"] = "You are successfully registered.";
   } else if ($res == USER_CREATE_FAILED) {
     $response["error"] = true;
-    $response["message"] = "Oops! An error occurred while registereing.";
+    $response["message"] = "Oops! An error occurred while registering.";
   } else if ($res == USER_ALREADY_EXISTED) {
     $response["error"] = true;
     $response["message"] = "Sorry, this email already existed.";
